@@ -4,6 +4,10 @@
 local AAR = {}
 AAR.prefix = "|cff33ff99AAR|r"
 AAR.addonPrefix = "AAR1"
+AAR.version = "0.1.3"
+-- Chat fallback parser is intentionally kept in code for future compatibility,
+-- but disabled in v0.1.3 and exposed through no slash command/config.
+local CHAT_FALLBACK_ENABLED = false
 
 local function Print(msg)
   if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage(AAR.prefix .. ": " .. tostring(msg)) end
@@ -39,23 +43,43 @@ local function CanAddonSyncChannel(ch)
   return ch == "PARTY" or ch == "RAID" or ch == "GUILD"
 end
 
-local function SplitPipe(s)
-  local out = {}
-  local start = 1
-  while true do
-    local p = string.find(s or "", "|", start, true)
-    if not p then
-      table.insert(out, string.sub(s or "", start))
-      break
-    end
-    table.insert(out, string.sub(s or "", start, p - 1))
-    start = p + 1
+local function ContainsChar(s, ch)
+  s = tostring(s or "")
+  local i
+  for i = 1, string.len(s) do
+    if string.sub(s, i, i) == ch then return true end
   end
+  return false
+end
+
+local function SplitPayload(s)
+  local out = {}
+  s = tostring(s or "")
+
+  -- v0.1.3 writes semicolon-delimited payloads because literal pipes can be
+  -- interpreted by WoW chat as color/link escape codes on Vanilla-style clients.
+  -- Keep legacy pipe parsing so old AAR1 messages can still be read when they arrive.
+  local delim = ";"
+  if not ContainsChar(s, ";") and ContainsChar(s, "|") then
+    delim = "|"
+  end
+
+  local last = 1
+  local i
+  for i = 1, string.len(s) do
+    if string.sub(s, i, i) == delim then
+      table.insert(out, string.sub(s, last, i - 1))
+      last = i + 1
+    end
+  end
+
+  table.insert(out, string.sub(s, last))
   return out
 end
 
-local function CleanPipe(s)
+local function CleanPayload(s)
   s = tostring(s or "")
+  s = string.gsub(s, ";", "/")
   s = string.gsub(s, "|", "/")
   s = string.gsub(s, "\n", " ")
   s = string.gsub(s, "\r", " ")
@@ -193,7 +217,15 @@ function AAR:RecordCatch(itemID, silent)
   end
 
   if AAR_DB.config.sync and CanAddonSyncChannel(AAR_DB.config.channel) and not silent and SendAddonMessage then
-    local payload = "C|" .. CleanPipe(c.id) .. "|" .. CleanPipe(c.player) .. "|" .. tostring(c.itemID) .. "|" .. tostring(c.lengthCm) .. "|" .. tostring(c.weightKg) .. "|" .. CleanPipe(c.timestamp) .. "|" .. CleanPipe(c.zone)
+    local payload =
+      "C;" ..
+      CleanPayload(c.id) .. ";" ..
+      CleanPayload(c.player) .. ";" ..
+      tostring(c.itemID or "") .. ";" ..
+      tostring(c.lengthCm or "") .. ";" ..
+      tostring(c.weightKg or "") .. ";" ..
+      CleanPayload(c.timestamp) .. ";" ..
+      CleanPayload(c.zone)
     SendAddonMessage(self.addonPrefix, payload, AAR_DB.config.channel)
   end
 end
@@ -283,7 +315,7 @@ function AAR:OnAddonMessage(prefix, msg, channel, sender)
   if senderName and myName and senderName == myName then return end
   InitDB()
 
-  local parts = SplitPipe(msg or "")
+  local parts = SplitPayload(msg or "")
   local typ = parts[1]
   local id = parts[2]
   local player = parts[3]
@@ -328,6 +360,7 @@ function AAR:OnAddonMessage(prefix, msg, channel, sender)
 end
 
 function AAR:OnChatAnnouncement(msg, sender)
+  if not CHAT_FALLBACK_ENABLED then return end
   InitDB()
   local c = ParseChatAnnouncement(msg)
   if not c then return end
@@ -434,10 +467,12 @@ end
 
 function AAR:Status()
   InitDB()
-  Print("version = v0.1.2")
+  Print("version = v" .. tostring(AAR.version))
   Print("channel = " .. tostring(AAR_DB.config.channel) .. ", announce = " .. tostring(AAR_DB.config.announce) .. ", sync = " .. tostring(AAR_DB.config.sync) .. ", quiet = " .. tostring(AAR_DB.config.quiet))
   Print("SendAddonMessage = " .. tostring(SendAddonMessage ~= nil) .. ", RegisterAddonMessagePrefix = " .. tostring(RegisterAddonMessagePrefix ~= nil))
-  Print("personal catches = " .. tostring(table.getn(AAR_DB.catches or {})) .. ", synced/chat catches = " .. tostring(table.getn(AAR_DB.received or {})))
+  Print("sync protocol = AAR1 semicolon payloads, legacy pipe receive supported")
+  Print("chat fallback = disabled")
+  Print("personal catches = " .. tostring(table.getn(AAR_DB.catches or {})) .. ", synced catches = " .. tostring(table.getn(AAR_DB.received or {})))
 end
 
 function AAR:Help()
@@ -446,7 +481,7 @@ function AAR:Help()
   Print("/aar me [weight|length] [n] - your own leaderboard")
   Print("/aar last - show last catch")
   Print("/aar log [n] - show recent personal catches")
-  Print("/aar sources [n] - show recent synced/chat catches with sender info")
+  Print("/aar sources [n] - show recent synced catches with sender info")
   Print("/aar status - show config and sync diagnostics")
   Print("/aar channel party|raid|guild|say|off - announce/sync channel")
   Print("/aar announce on|off - public chat announce")
@@ -555,17 +590,18 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("CHAT_MSG_LOOT")
 frame:RegisterEvent("CHAT_MSG_ADDON")
-frame:RegisterEvent("CHAT_MSG_PARTY")
-frame:RegisterEvent("CHAT_MSG_RAID")
-frame:RegisterEvent("CHAT_MSG_GUILD")
-frame:RegisterEvent("CHAT_MSG_SAY")
+-- Chat fallback remains implemented but disabled in v0.1.3.
+-- frame:RegisterEvent("CHAT_MSG_PARTY")
+-- frame:RegisterEvent("CHAT_MSG_RAID")
+-- frame:RegisterEvent("CHAT_MSG_GUILD")
+-- frame:RegisterEvent("CHAT_MSG_SAY")
 
 frame:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
     InitDB()
     SeedRandom()
     if RegisterAddonMessagePrefix then RegisterAddonMessagePrefix(AAR.addonPrefix) end
-    Print("loaded v0.1.2. /aar help")
+    Print("loaded v" .. tostring(AAR.version) .. ". /aar help")
   elseif event == "CHAT_MSG_LOOT" then
     AAR:OnLoot(arg1)
   elseif event == "CHAT_MSG_ADDON" then

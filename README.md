@@ -1,39 +1,28 @@
 # Azeroth Angler Records
 
-A pure Lua Turtle/Vanilla WoW addon for running fun fishing contests.
+Azeroth Angler Records is a Turtle WoW / Vanilla WoW addon for fun fishing contests.
 
-When you loot a known fish, the addon maps that WoW fish to a similar real-world fish, rolls a plausible length and weight, saves the catch, and can announce/sync it with other players running the addon.
+When you catch a known fish, the addon gives it a real-life fish equivalent and rolls a realistic length and weight. It can save your catches, announce them, and sync contest records with other players using the addon.
 
 Example:
 
 ```text
-AAR: Ardnaxur caught Raw Sunscale Salmon -> Atlantic salmon 82.4cm / 8.731kg
+AAR: Razvan caught Raw Sunscale Salmon -> Atlantic salmon 82.4cm / 8.731kg
 ```
-
-## Compatibility
-
-Designed for Turtle WoW / Vanilla-style clients.
-
-* Client interface: `11200`
-* Pure Lua addon
-* No DLLs
-* No executables
-* No external dependencies
 
 ## Features
 
-* Detects known fish from loot chat
-* Maps WoW fish to real-life analogues
-* Rolls length and weight values
-* Saves your personal catch history
+* Detects fish from loot chat
+* Gives each fish a real-life equivalent
+* Rolls length and weight
+* Saves your personal catches
 * Shows personal records
-* Shows synced party/raid/guild leaderboard
-* Announces catches to party, raid, guild, say, or off
-* Syncs catches through addon messages in party/raid/guild
-* Includes visible-chat fallback for cases where addon-message sync fails
-* Supports contest organizer workflows
+* Shows party/raid/guild contest leaderboards
+* Announces catches in chat
+* Syncs catches with other players using the addon
+* Works as a pure Lua addon, no DLLs or external programs
 
-## Install
+## Installation
 
 Copy the addon folder to:
 
@@ -41,13 +30,7 @@ Copy the addon folder to:
 World of Warcraft\Interface\AddOns\AzerothAnglerRecords\
 ```
 
-The `.toc` file must be directly inside that folder:
-
-```text
-Interface\AddOns\AzerothAnglerRecords\AzerothAnglerRecords.toc
-```
-
-Correct:
+The addon files should look like this:
 
 ```text
 Interface\AddOns\AzerothAnglerRecords\AzerothAnglerRecords.toc
@@ -55,17 +38,15 @@ Interface\AddOns\AzerothAnglerRecords\AzerothAnglerRecords.lua
 Interface\AddOns\AzerothAnglerRecords\AAR_Data.lua
 ```
 
-Wrong:
+Then restart the game or run:
 
 ```text
-Interface\AddOns\AzerothAnglerRecords_v0.1.2\AzerothAnglerRecords\AzerothAnglerRecords.toc
+/reload
 ```
-
-After installing, restart the game or reload your UI.
 
 ## Quick Start
 
-For a party fishing contest:
+For a party contest:
 
 ```text
 /aar clearall
@@ -75,7 +56,7 @@ For a party fishing contest:
 /aar status
 ```
 
-For a raid fishing contest:
+For a raid contest:
 
 ```text
 /aar clearall
@@ -87,7 +68,7 @@ For a raid fishing contest:
 
 Then fish normally.
 
-To check the leaderboard:
+To show the leaderboard:
 
 ```text
 /aar best weight 10
@@ -96,79 +77,67 @@ To check the leaderboard:
 
 ## Commands
 
+### Help
+
 ```text
 /aar help
 ```
 
 Shows the command list.
 
+### Status
+
 ```text
 /aar status
 ```
 
-Shows current addon settings, including announce channel, announce state, sync state, and addon-message support.
+Shows your current addon settings.
 
-```text
-/aar best [weight|length] [n]
-```
-
-Shows the synced leaderboard.
-
-Examples:
+### Leaderboard
 
 ```text
 /aar best weight 10
 /aar best length 10
 ```
 
-This includes your catches plus synced catches received from other players.
+Shows the synced leaderboard, including your catches and catches received from other players.
 
-```text
-/aar me [weight|length] [n]
-```
-
-Shows only your personal catches.
-
-Examples:
+### Personal Records
 
 ```text
 /aar me weight 10
 /aar me length 10
 ```
 
+Shows only your own catches.
+
+### Last Catch
+
 ```text
 /aar last
 ```
 
-Shows your last personal catch.
+Shows your latest saved catch.
+
+### Catch Log
 
 ```text
-/aar log [n]
+/aar log 10
 ```
 
-Shows your recent personal catches.
+Shows your recent catches.
 
-Example:
+### Synced Catch Sources
 
 ```text
-/aar log 20
+/aar sources 10
 ```
 
-```text
-/aar sources [n]
-```
+Shows recently received catches from other players.
 
-Shows recent synced catches and where they came from.
+Useful for contest organizers to check whether another player's catch synced correctly.
 
-Useful for debugging whether a catch came from addon sync or chat fallback.
-
-```text
-/aar channel party|raid|guild|say|off
-```
-
-Sets the public announce channel.
-
-Examples:
+### Set Channel
 
 ```text
 /aar channel party
@@ -178,33 +147,60 @@ Examples:
 /aar channel off
 ```
 
-Important: addon-message sync works only in party, raid, and guild. Say can announce visible catches, but it is not a true addon-sync channel.
+Sets where catches are announced.
+
+For synced contests, use:
 
 ```text
-/aar announce on|off
+/aar channel party
+```
+
+or:
+
+```text
+/aar channel raid
+```
+
+### Announcements
+
+```text
+/aar announce on
+/aar announce off
 ```
 
 Turns visible catch announcements on or off.
 
-```text
-/aar sync on|off
-```
-
-Turns hidden addon-message sync on or off for your own catches.
-
-If you catch a fish and your sync is off, other players may see your chat announcement, but they may not receive the hidden addon sync message.
+### Sync
 
 ```text
-/aar quiet on|off
+/aar sync on
+/aar sync off
 ```
 
-Controls local addon print noise in your own chat window.
+Turns catch syncing on or off.
+
+For contests, players should use:
+
+```text
+/aar sync on
+```
+
+### Quiet Mode
+
+```text
+/aar quiet on
+/aar quiet off
+```
+
+Reduces local addon messages in your chat.
+
+### Fish Lookup
 
 ```text
 /aar fish <itemid>
 ```
 
-Shows the database entry for a fish item ID.
+Shows information about a fish in the addon database.
 
 Example:
 
@@ -212,13 +208,13 @@ Example:
 /aar fish 13760
 ```
 
+### Test Roll
+
 ```text
 /aar test <itemid>
 ```
 
-Simulates a catch for testing.
-
-In v0.1.2+, this should not save, announce, or sync a real leaderboard catch. It is only for checking database/roll output.
+Tests what a roll would look like for a fish.
 
 Example:
 
@@ -226,25 +222,29 @@ Example:
 /aar test 13760
 ```
 
+Test rolls do not count as real catches.
+
+### Reset Personal Data
+
 ```text
 /aar reset
 ```
 
-Clears only your personal catches.
+Clears your own saved catches.
+
+### Clear Everything
 
 ```text
 /aar clearall
 ```
 
-Clears your personal catches and received/synced catches.
+Clears your own catches and received synced catches.
 
-Use this before starting a real contest.
+Recommended before starting a new contest.
 
 ## Recommended Contest Setup
 
-Everyone participating should install the same addon version.
-
-Before the contest, each player should run:
+Before starting a contest, all participants should install the same addon version and run:
 
 ```text
 /aar clearall
@@ -254,13 +254,13 @@ Before the contest, each player should run:
 /aar status
 ```
 
-For a party contest, use:
+For party contests, use:
 
 ```text
 /aar channel party
 ```
 
-The organizer should keep the addon enabled for the whole event and use their synced leaderboard as the official board:
+The contest organizer can check standings with:
 
 ```text
 /aar best weight 10
@@ -268,213 +268,42 @@ The organizer should keep the addon enabled for the whole event and use their sy
 /aar sources 10
 ```
 
-Recommended contest categories:
+Suggested contest categories:
 
 ```text
 Biggest by weight
 Longest by length
-Best tiny cursed catch
-Best freshwater catch
-Best saltwater catch
-Funniest real-life analogue
+Smallest catch
+Best rare catch
+Funniest real-life fish equivalent
 ```
 
-## Sync Behavior
+## Important Notes
 
-Azeroth Angler Records has two ways to share catches.
+This addon is made for fun community events.
 
-### 1. Addon-message sync
+It is not cheat-proof. Players can still modify local addon data or use modified addon files.
 
-This is the proper sync method.
-
-Works in:
-
-```text
-PARTY
-RAID
-GUILD
-```
-
-Does not work in:
-
-```text
-SAY
-```
-
-The player catching the fish must have:
-
-```text
-/aar sync on
-```
-
-If you have sync on but the other player has sync off, your catches can sync to them, but their catches will not send hidden addon sync messages to you.
-
-### 2. Visible-chat fallback
-
-If enabled in the installed version, the addon can also parse visible AAR catch announcements from party/raid/guild/say chat and add them to the local leaderboard.
-
-This helps on Turtle/Vanilla clients where `CHAT_MSG_ADDON` or addon-message prefix behavior can be inconsistent.
-
-However, visible-chat fallback is less trustworthy because a player can manually type a fake AAR-looking message.
-
-For casual guild events, this is fine. For serious contests, prefer addon-message sync and an organizer log.
-
-## Testing Sync
-
-To test a real party sync:
-
-1. Both players install the same addon version.
-2. Both players join the same party.
-3. Both players run:
-
-```text
-/aar channel party
-/aar announce on
-/aar sync on
-/aar status
-```
-
-4. Player A catches a real fish.
-5. Player B checks:
-
-```text
-/aar best weight 10
-/aar sources 10
-```
-
-If Player B saw the party announcement but does not see the catch in `/aar best`, then addon-message sync failed and the visible-chat fallback did not parse the announcement. Check that both players are on the same addon version.
-
-## Defaults
-
-Fresh install defaults:
-
-```text
-announce = true
-channel = PARTY
-sync = true
-mode = weight
-quiet = false
-```
-
-Saved settings are stored in:
-
-```text
-WTF\Account\<ACCOUNT>\SavedVariables\AzerothAnglerRecords.lua
-```
-
-If a player previously turned sync off, updating the addon will not automatically turn it back on. They should run:
-
-```text
-/aar sync on
-```
-
-## Important Fairness Warning
-
-This is a local Lua addon for fun events.
-
-It is not cheat-proof.
-
-A player can:
-
-```text
-Edit SavedVariables
-Modify addon Lua files
-Fake visible chat fallback messages
-Send fake addon messages
-Use test/dev-modified versions
-```
-
-For casual guild contests, that is acceptable.
-
-For better trust:
+For best results:
 
 ```text
 Everyone should use the same addon version
-Everyone should clear old data before the event
-The organizer should keep the official synced leaderboard
-Catches should be announced live
-Suspicious entries should be checked with /aar sources
-```
-
-Do not use this addon as the only proof for a serious prize contest.
-
-## Data Notes
-
-The fish database is intentionally gameplay-friendly, not scientific-grade.
-
-It includes common Vanilla/Turtle-style fish, alchemy fish, seasonal fish, rare fish, and bloated fish.
-
-Each WoW fish is mapped to a similar real-world fish or creature. The addon then rolls plausible length and weight values using local ranges.
-
-You can extend the database by editing:
-
-```text
-AAR_Data.lua
-```
-
-Add new Turtle/custom fish by item ID and include:
-
-```text
-WoW fish name
-Real-world analogue
-Scientific name
-Habitat
-Minimum length
-Maximum length
-Minimum weight
-Maximum weight
+Everyone should clear old data before the contest
+Everyone should keep sync enabled
+The organizer should use /aar sources if something looks suspicious
 ```
 
 ## Troubleshooting
 
-### I see someone’s catch announcement, but it is not in my leaderboard
+### I only see my own catches
 
-The visible chat announcement and hidden addon sync are separate.
-
-Make sure both players run:
+Make sure everyone has sync enabled:
 
 ```text
-/aar channel party
-/aar announce on
 /aar sync on
-/aar status
 ```
 
-Then check:
-
-```text
-/aar sources 10
-```
-
-### `/aar best weight 10` only shows my catches
-
-Either you have not received synced catches, or others are not sending them.
-
-The player catching the fish must have sync enabled.
-
-### `/aar best weight 10` shows old/fake/test entries
-
-Clear the data before the real contest:
-
-```text
-/aar clearall
-```
-
-Also make sure everyone is on v0.1.2 or newer, where `/aar test` should not save/sync real leaderboard entries.
-
-### `RegisterAddonMessagePrefix = false`
-
-That is usually normal on Vanilla/Turtle-style clients.
-
-It means the modern prefix-registration API is not available. The addon can still use old-style addon messages through `SendAddonMessage` and `CHAT_MSG_ADDON`.
-
-### Party sync still does not work
-
-Use v0.1.2 or newer so the visible-chat fallback can help.
-
-Also make sure the channel is not `say` if you want real addon-message sync.
-
-Use:
+Also make sure everyone is using party, raid, or guild channel:
 
 ```text
 /aar channel party
@@ -483,6 +312,38 @@ Use:
 or:
 
 ```text
+/aar channel raid
+```
+
+### I see catch announcements, but they do not appear in the leaderboard
+
+In v0.1.3, visible chat announcements are not imported into the leaderboard.
+
+Players need to have the addon installed and sync enabled.
+
+### The leaderboard has old or test entries
+
+Run:
+
+```text
+/aar clearall
+```
+
+before starting a new contest.
+
+### Sync still does not work
+
+Make sure both players are in the same party or raid and have:
+
+```text
+/aar sync on
+/aar channel party
+```
+
+or:
+
+```text
+/aar sync on
 /aar channel raid
 ```
 
@@ -514,3 +375,42 @@ or:
 /aar reset
 /aar clearall
 ```
+
+## Changelog
+
+### v0.1.3
+
+* Fixed party/raid/guild sync issues on Turtle/Vanilla clients.
+* Improved compatibility between players using the addon.
+* Disabled visible chat fallback for leaderboard imports.
+* Leaderboards now rely on addon sync only.
+* Removed temporary debug messages from the release version.
+* Updated README.
+
+### v0.1.2
+
+* Added visible chat fallback for cases where addon sync was unreliable.
+* Added `/aar status`.
+* Added `/aar sources`.
+* Improved sync troubleshooting.
+* Helped identify whether catches were received through sync or chat fallback.
+
+### v0.1.1
+
+* Fixed `/aar test` so test rolls no longer save, announce, or sync as real catches.
+* Improved synced catch ownership.
+* Added/improved `/aar sources`.
+* Improved duplicate handling.
+* Recommended `/aar clearall` before real contests.
+
+### v0.1.0
+
+* Initial release.
+* Added fish detection from loot chat.
+* Added real-life fish equivalents.
+* Added length and weight rolls.
+* Added personal catch history.
+* Added leaderboards.
+* Added catch announcements.
+* Added initial sync support.
+* Added basic slash commands.
