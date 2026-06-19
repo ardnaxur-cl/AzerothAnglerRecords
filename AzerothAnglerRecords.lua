@@ -14,6 +14,14 @@ local function SafeLower(s)
   return string.lower(s)
 end
 
+local function NormalizePlayerName(name)
+  name = tostring(name or "")
+  -- Some clients include realm suffixes in addon sender names.
+  name = string.gsub(name, "%-.+$", "")
+  if name == "" then return nil end
+  return name
+end
+
 local function Round(n, decimals)
   local p = 10 ^ (decimals or 0)
   return math.floor(n * p + 0.5) / p
@@ -162,6 +170,13 @@ function AAR:CreateCatch(itemID)
   return c
 end
 
+function AAR:PreviewCatch(itemID)
+  InitDB()
+  local c = self:CreateCatch(itemID)
+  if not c then return end
+  Print("test roll only, not saved/synced: " .. FormatCatch(c))
+end
+
 function AAR:RecordCatch(itemID, silent)
   InitDB()
   local c = self:CreateCatch(itemID)
@@ -203,9 +218,69 @@ local function HasCatch(id)
   return false
 end
 
+local function SameNumber(a, b)
+  a = tonumber(a) or 0
+  b = tonumber(b) or 0
+  return math.abs(a - b) < 0.0005
+end
+
+local function HasSimilarCatch(player, itemID, length, weight)
+  InitDB()
+  player = NormalizePlayerName(player)
+  itemID = tonumber(itemID)
+  length = tonumber(length) or 0
+  weight = tonumber(weight) or 0
+
+  local function scan(tbl)
+    local i, c
+    for i = 1, table.getn(tbl or {}) do
+      c = tbl[i]
+      if c and NormalizePlayerName(c.player) == player
+        and tonumber(c.itemID) == itemID
+        and SameNumber(c.lengthCm, length)
+        and SameNumber(c.weightKg, weight) then
+        return true
+      end
+    end
+    return false
+  end
+
+  return scan(AAR_DB.catches) or scan(AAR_DB.received)
+end
+
+local function MakeChatCatchId(player, itemID, length, weight)
+  return "chat-" .. tostring(NormalizePlayerName(player) or "?") .. "-" .. tostring(itemID or "?") .. "-" .. tostring(length or "?") .. "-" .. tostring(weight or "?")
+end
+
+local function ParseChatAnnouncement(msg)
+  local _, _, player, wow, real, length, weight = string.find(msg or "", "^AAR:%s*(.-)%s+caught%s+(.-)%s+%-%>%s+(.-)%s+([%d%.]+)cm%s*/%s*([%d%.]+)kg")
+  if not player then return nil end
+  local itemID = AAR_FISH_NAME_TO_ID[SafeLower(wow)]
+  local fish = itemID and AAR_FISH[itemID]
+  if not fish then return nil end
+  return {
+    id = MakeChatCatchId(player, itemID, length, weight),
+    player = NormalizePlayerName(player) or player,
+    payloadPlayer = NormalizePlayerName(player),
+    sender = NormalizePlayerName(player),
+    itemID = itemID,
+    wow = fish.wow,
+    real = fish.real,
+    sci = fish.sci,
+    habitat = fish.habitat,
+    lengthCm = tonumber(length) or 0,
+    weightKg = tonumber(weight) or 0,
+    timestamp = date and date("%Y-%m-%d %H:%M:%S") or tostring(GetTime and GetTime() or 0),
+    zone = "chat",
+    source = "chat",
+  }
+end
+
 function AAR:OnAddonMessage(prefix, msg, channel, sender)
   if prefix ~= self.addonPrefix then return end
-  if sender and UnitName and sender == UnitName("player") then return end
+  local senderName = NormalizePlayerName(sender)
+  local myName = UnitName and NormalizePlayerName(UnitName("player")) or nil
+  if senderName and myName and senderName == myName then return end
   InitDB()
 
   local parts = SplitPipe(msg or "")
@@ -226,7 +301,11 @@ function AAR:OnAddonMessage(prefix, msg, channel, sender)
 
   local c = {
     id = id,
-    player = player or sender or "?",
+    -- Trust the addon-message sender as the owner when available.
+    -- The payload player field is kept for older messages/fallback only.
+    player = senderName or NormalizePlayerName(player) or "?",
+    payloadPlayer = NormalizePlayerName(player),
+    sender = senderName,
     itemID = itemID,
     wow = fish.wow,
     real = fish.real,
@@ -238,10 +317,34 @@ function AAR:OnAddonMessage(prefix, msg, channel, sender)
     zone = zone or "",
     source = "sync",
   }
+
+  if HasSimilarCatch(c.player, c.itemID, c.lengthCm, c.weightKg) then return end
+
   AddCatch(AAR_DB.received, c)
 
   if not AAR_DB.config.quiet then
     Print("synced: " .. FormatCatch(c))
+  end
+end
+
+function AAR:OnChatAnnouncement(msg, sender)
+  InitDB()
+  local c = ParseChatAnnouncement(msg)
+  if not c then return end
+
+  local senderName = NormalizePlayerName(sender)
+  local myName = UnitName and NormalizePlayerName(UnitName("player")) or nil
+  if senderName then
+    c.player = senderName
+    c.sender = senderName
+  end
+  if myName and c.player == myName then return end
+  if HasCatch(c.id) then return end
+  if HasSimilarCatch(c.player, c.itemID, c.lengthCm, c.weightKg) then return end
+
+  AddCatch(AAR_DB.received, c)
+  if not AAR_DB.config.quiet then
+    Print("chat-synced: " .. FormatCatch(c))
   end
 end
 
@@ -308,11 +411,33 @@ function AAR:PrintLog(count)
   end
 end
 
+function AAR:PrintSources(count)
+  InitDB()
+  count = tonumber(count) or 10
+  local n = table.getn(AAR_DB.received)
+  if n == 0 then Print("No synced catches yet.") return end
+  local start = n - count + 1
+  if start < 1 then start = 1 end
+  local i
+  for i = start, n do
+    local c = AAR_DB.received[i]
+    Print("sync #" .. i .. " source=" .. tostring(c.source or "?") .. " owner=" .. tostring(c.player) .. " sender=" .. tostring(c.sender or "?") .. " payload=" .. tostring(c.payloadPlayer or "?") .. " id=" .. tostring(c.id))
+  end
+end
+
 function AAR:ShowFish(itemID)
   itemID = tonumber(itemID)
   local fish = itemID and AAR_FISH[itemID]
   if not fish then Print("Unknown fish item id. Example: /aar fish 6291") return end
   Print(fish.wow .. " => " .. fish.real .. " (" .. fish.sci .. "), " .. fish.habitat .. ", " .. Num(fish.minL,1) .. "-" .. Num(fish.maxL,1) .. " cm, " .. Num(fish.minW,3) .. "-" .. Num(fish.maxW,3) .. " kg")
+end
+
+function AAR:Status()
+  InitDB()
+  Print("version = v0.1.2")
+  Print("channel = " .. tostring(AAR_DB.config.channel) .. ", announce = " .. tostring(AAR_DB.config.announce) .. ", sync = " .. tostring(AAR_DB.config.sync) .. ", quiet = " .. tostring(AAR_DB.config.quiet))
+  Print("SendAddonMessage = " .. tostring(SendAddonMessage ~= nil) .. ", RegisterAddonMessagePrefix = " .. tostring(RegisterAddonMessagePrefix ~= nil))
+  Print("personal catches = " .. tostring(table.getn(AAR_DB.catches or {})) .. ", synced/chat catches = " .. tostring(table.getn(AAR_DB.received or {})))
 end
 
 function AAR:Help()
@@ -321,12 +446,14 @@ function AAR:Help()
   Print("/aar me [weight|length] [n] - your own leaderboard")
   Print("/aar last - show last catch")
   Print("/aar log [n] - show recent personal catches")
+  Print("/aar sources [n] - show recent synced/chat catches with sender info")
+  Print("/aar status - show config and sync diagnostics")
   Print("/aar channel party|raid|guild|say|off - announce/sync channel")
   Print("/aar announce on|off - public chat announce")
   Print("/aar sync on|off - addon sync messages")
   Print("/aar quiet on|off - local print noise")
   Print("/aar fish <itemid> - show fish database entry")
-  Print("/aar test <itemid> - simulate a catch")
+  Print("/aar test <itemid> - local test roll, not saved/synced")
   Print("/aar reset - clear your personal catches")
   Print("/aar clearall - clear personal + synced catches")
 end
@@ -356,12 +483,14 @@ function AAR:Command(msg)
 
   if cmd == "last" then self:PrintLast(); return end
   if cmd == "log" then self:PrintLog(tonumber(rest) or 10); return end
+  if cmd == "sources" then self:PrintSources(tonumber(rest) or 10); return end
+  if cmd == "status" then self:Status(); return end
   if cmd == "fish" then self:ShowFish(rest); return end
 
   if cmd == "test" then
     local id = tonumber(rest) or 6291
     if not AAR_FISH[id] then Print("Unknown test fish item id.") return end
-    self:RecordCatch(id, false)
+    self:PreviewCatch(id)
     return
   end
 
@@ -426,16 +555,23 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("CHAT_MSG_LOOT")
 frame:RegisterEvent("CHAT_MSG_ADDON")
+frame:RegisterEvent("CHAT_MSG_PARTY")
+frame:RegisterEvent("CHAT_MSG_RAID")
+frame:RegisterEvent("CHAT_MSG_GUILD")
+frame:RegisterEvent("CHAT_MSG_SAY")
 
 frame:SetScript("OnEvent", function()
   if event == "PLAYER_LOGIN" then
     InitDB()
     SeedRandom()
-    Print("loaded. /aar help")
+    if RegisterAddonMessagePrefix then RegisterAddonMessagePrefix(AAR.addonPrefix) end
+    Print("loaded v0.1.2. /aar help")
   elseif event == "CHAT_MSG_LOOT" then
     AAR:OnLoot(arg1)
   elseif event == "CHAT_MSG_ADDON" then
     AAR:OnAddonMessage(arg1, arg2, arg3, arg4)
+  elseif event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_GUILD" or event == "CHAT_MSG_SAY" then
+    AAR:OnChatAnnouncement(arg1, arg2)
   end
 end)
 
