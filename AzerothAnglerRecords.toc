@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: Azeroth Angler Records
+## Notes: Fantasy fishing records: maps WoW fish to real-world analogues and rolls length/weight catches for guild contests.
+## Author: ChatGPT for Razvan
+## Version: 0.1.0
+## SavedVariables: AAR_DB
+AAR_Data.lua
+AzerothAnglerRecords.lua
