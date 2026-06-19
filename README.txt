@@ -1,4 +1,4 @@
-Azeroth Angler Records v0.1.0
+Azeroth Angler Records v0.1.2
 ================================
 
 A pure Lua Turtle/Vanilla WoW addon for running a fun fishing contest.
@@ -56,3 +56,11 @@ Data notes
 The database is intentionally gameplay-friendly, not scientific-grade.
 It includes common Vanilla/Turtle-style fish, alchemy fish, seasonal fish, rare fish, and bloated fish.
 You can extend AAR_Data.lua by adding more item IDs if Turtle/Octo custom fish should be included.
+
+What's changed in v0.1.2
+--------------------------
+- Adds fallback sync from visible AAR chat announcements.
+- If you see their PARTY/RAID/GUILD/SAY announcement, your addon can now add it to the synced leaderboard.
+- Keeps real addon-message sync too.
+- Adds /aar status for debugging.
+- /aar sources now shows whether a catch came from addon sync or chat fallback.
